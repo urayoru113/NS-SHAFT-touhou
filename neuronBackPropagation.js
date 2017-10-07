@@ -1,262 +1,199 @@
 var neuroevolution = function(){
-	
-	var numInput;
-	var numHidden;
-	var numOutput;
-	
-	var loop = 0;
-	
-	var learningRate = 0.3;
-	
-	this.weight = {
-		intohd : [],    /*input to hidden*/
-		hdtoou : [],    /*hidden to output*/
-		
-		bestIntohd : [],
-		bestHdtoou : [],
-		
-		tmpintohd : [],
-		tmphdtoou : [],
-		
-		bestscore : 0,
+    
+    this.numInput;
+    this.numHidden = [];
+    this.numOutput;
+    
+    this.loop = 0;
+    this.learningRate = 0.3;
+    
+    this.weight = {
+        IntputHidden : [],    /*input  to hidden*/
+        HiddenHidden : [],    /*hidden to hidden*/
+        HiddenOutput : [],    /*hidden to output*/
+        
+        bestIntputHidden : [],
+        bestHiddenOutput : [],
 
-	}
-	
-	this.neuron = {
-		input  : [],
-		hidden : [],
-		output : [],
-		
-		bestOutput : [],
-		
-		errorInput : [],
-		errorHidden : [],
-		errorOutput : []
-	}
-	
-	this.sigmoid = function(x){
-		return 1 / (1 + Math.exp(-x));
-	}
-	
-	this.tanh = function(x){
-		return 1 / (1 + Math.tanh(x));
-	}
-	
-	this.ReLU = function(x){
-		return (a > 0)?a : 0;
-	}
-	
-	this.network = function(input, hidden, output){
-		
-		numInput = input;
-		numHidden = hidden;
-		numOutput = output;
-		
-		/*generate weight*/
-		for (i = 0; i < numInput; i++){
-			this.weight.intohd[i] = [];
-			for (j = 0; j < numHidden; j++){
-				this.weight.intohd[i].push(2 * Math.random() - 1);
-			}
-		}
-		
-		for (i = 0; i < numHidden; i++){
-			this.weight.hdtoou[i] = [];
-			for (j = 0; j < numOutput; j++){
-				this.weight.hdtoou[i].push(2 * Math.random() - 1);
-			}
-		}
+        bestscore : 0,
 
-	}
-	
-	this.compute = function(userdata){
-		
-		this.neuron.input = userdata;
-		
-		for (i = 0; i < numHidden; i++){
-			this.neuron.hidden[i] = 0;
-		}
-		
-		for (i = 0; i < numOutput; i++){
-			this.neuron.output[i] = 0;
-		}
-		
-		for(i = 0; i < numHidden; i++){
-			for(j = 0; j < numInput; j++){
-				this.neuron.hidden[i] += this.neuron.input[j] * this.weight.intohd[j][i];
-			}
-			this.neuron.hidden[i] = this.sigmoid(this.neuron.hidden[i]);
-		}
-		
-		for(i = 0; i < numOutput; i++){
-			for(j = 0; j < numHidden; j++){
-				this.neuron.output[i] += this.neuron.hidden[j] * this.weight.hdtoou[j][i];
-			}
-			this.neuron.output[i] = this.sigmoid(this.neuron.output[i]);
-		}
+    }
+    
+    this.neuron = {
+        input  : [],
+        hidden : [],
+        output : [],
+        
+        bestOutput : [],
+        
+        errorInput : [],
+        errorHidden : [],
+        errorOutput : []
+    }
+    
+    this.sigmoid = function(x){
+        return 1 / (1 + Math.exp(-x));
+    }
+    
+    this.tanh = function(x){
+        return 1 / (1 + Math.tanh(x));
+    }
+    
+    this.ReLU = function(x){
+        return (a > 0)? a : 0;
+    }
+}
 
+neuroevolution.prototype.network = function(){
+    
 
+    this.numInput = arguments[0];
+    for (let i = 1; i < arguments.length - 1; i++){
+        this.numHidden.push(arguments[i]);
+    }
+    this.numOutput = arguments[arguments.length - 1];
+    
+    /*generate weight form input to hidden_begin*/
+    for (let i = 0; i < this.numInput; i++){
+        this.weight.IntputHidden[i] = [];
+        for (let j = 0; j < this.numHidden[0]; j++){
+            this.weight.IntputHidden[i].push(2 * Math.random() - 1);
+        }
+    }
+    
+    /*generate weight form hidden_begin to hidden_end*/
+    for (let i = 0; i < this.numHidden.length - 1; i++){
+        this.weight.HiddenHidden[i] = [];
+        for (let j = 0; j < this.numHidden[i]; j++){
+            this.weight.HiddenHidden[i][j] = [];
+            for (let k = 0; k < this.numHidden[i + 1]; k++){
+                this.weight.HiddenHidden[i][j].push(2 * Math.random() - 1);
+            }
+        }
+    }
+    
+    /*generate weight form hidden_end to output*/
+    for (let i = 0; i < this.numHidden[this.numHidden.length - 1]; i++){
+        this.weight.HiddenOutput[i] = [];
+        for (let j = 0; j < this.numOutput; j++){
+            this.weight.HiddenOutput[i].push(2 * Math.random() - 1);
+        }
+    }
 
-		return this.neuron.output;
-	}
+}
 
-	this.update = function(userInput, useroutput, bestout){
-		
+neuroevolution.prototype.compute = function(userdata){
+    
+    this.neuron.input = userdata;
+    
+    for (let i = 0; i < this.numHidden.length; i++){
+        this.neuron.hidden[i] = [];
+        for (let j = 0; j < this.numHidden[i]; j++){
+            this.neuron.hidden[i][j] = 0;
+        }
+    }
+    
+    for (let i = 0; i < this.numOutput; i++){
+        this.neuron.output[i] = 0;
+    }
+    
+    for (let i = 0; i < this.numHidden[0]; i++){
+        for (let j = 0; j < this.numInput; j++){
+            this.neuron.hidden[0][i] += this.neuron.input[j] * this.weight.IntputHidden[j][i];
+            //console.log('3:' + this.weight.IntputHidden[j][i]);
+        }
+        this.neuron.hidden[0][i] = this.sigmoid(this.neuron.hidden[0][i]);
+    }
+    
+    for (let i = 0; i < this.numHidden.length - 1 ; i++){
+        for (let j = 0; j < this.numHidden[i + 1]; j++){
+            for (let k = 0; k < this.numHidden[i]; k++){
+                this.neuron.hidden[i + 1][j] += this.neuron.hidden[i][k] * this.weight.HiddenHidden[i][k][j];
+                //console.log('4:' + this.neuron.hidden[i][k]);
+            }
+            this.neuron.hidden[i + 1][j] = this.sigmoid(this.neuron.hidden[i + 1][j]);
+        }
+    }
+    
+    for (let i = 0; i < this.numOutput; i++){
+        for (let j = 0; j < this.numHidden[this.numHidden.length - 1]; j++){
+            this.neuron.output[i] += this.neuron.hidden[this.numHidden.length - 1][j] * this.weight.HiddenOutput[j][i];
+        }
+        this.neuron.output[i] = this.sigmoid(this.neuron.output[i]);
+    }
+    
+    return this.neuron.output;
+}
 
-		
-/*
-		if(this.weight.bestscore == 0){
-			
-			var hiddenData = [];
-			this.neuron.bestOutput = [];
-			
-			for(i = 0; i < numHidden; i++){
-				var tmp = 0;
-				for(j = 0; j < numInput; j++){
-					tmp += userInput[j] * this.weight.intohd[j][i];
-				}
-				hiddenData.push(tmp);
-			}
-			
-			for(i = 0; i < numOutput; i++){
-				var tmp = 0;
-				for(j = 0; j < numHidden; j++){
-					tmp += hiddenData[j] * this.weight.hdtoou[j][i];
-				}
-				this.neuron.bestOutput.push(tmp);
-			}
-
-			for(i = 0; i < numInput; i++){
-				this.weight.bestIntohd[i] = [];
-				this.weight.tmpintohd[i] = [];
-			}
-			
-			for(i = 0; i < numHidden; i++){
-				this.weight.bestHdtoou[i] = [];
-				this.weight.tmphdtoou[i] = [];
-			}
-			
-			this.weight.bestscore = score;
-			
-			for (i = 0; i < numHidden; i++)
-				for(j = 0; j < numInput; j++){
-					this.weight.bestIntohd[j].push(this.weight.intohd[j][i]);
-				}
-				
-			for (i = 0; i < numOutput; i++)
-				for(j = 0; j < numHidden; j++){
-					this.weight.bestHdtoou[j].push(this.weight.hdtoou[j][i]);
-				}
-				
-			this.network(numInput, numHidden, numOutput);
-		
-			
-			return;
-		}
-*/
-		/*calculate error*/	
-
-		
-		this.neuron.output = [];
-		
-		for(i = 0; i < numOutput; i++)
-			this.neuron.output.push(useroutput[i]);
-		
-		this.neuron.bestOutput = [];
-		
-		for(i = 0; i < numOutput; i++)
-			this.neuron.bestOutput.push(bestout[i]);
-		
-		
-		{
-			this.neuron.errorOutput = [];
-			this.neuron.errorHidden = [];
-		
-			for(i = 0; i < numOutput; i++){
-				this.neuron.errorOutput.push(this.neuron.output[i] * (1 - this.neuron.output[i]) 
-											  * (this.neuron.bestOutput[i] - this.neuron.output[i]));
-			}
-		
-			for(i = 0; i <numHidden; i++){
-				var outError = 0;
-				for(j = 0; j < numOutput; j++){
-					outError += this.neuron.errorOutput[j] * this.weight.hdtoou[i][j];
-				}
-				this.neuron.errorHidden.push(outError * this.neuron.hidden[i] * (1 - this.neuron.hidden[i]));
-			}
-		}
-		/*********************/
-		
-
-
-			for(i = 0; i < numHidden; i++){
-				for(j = 0; j < numInput; j++){
-					this.weight.intohd[j][i] += learningRate * this.neuron.errorHidden[i] * this.neuron.input[j];
-				}
-			}
-			
-			for(i = 0; i < numOutput; i++){
-				for(j = 0; j < numHidden; j++){
-					this.weight.hdtoou[j][i] += learningRate * this.neuron.errorOutput[i] * this.neuron.hidden[j];
-				}
-			}
-			/*
-			for(i = 0; i < numHidden; i++){
-				for(j = 0; j < numInput; j++){
-					console.log('inhd w' + j + '' + i + ' ' + this.weight.intohd[j][i]);
-				}	
-			}
-			
-			for(i = 0; i < numOutput; i++){
-				for(j = 0; j < numHidden; j++){
-					console.log('hdou w' + j + '' + i + ' ' + this.weight.hdtoou[j][i]);
-				}	
-			}
-			*/
-			return;
-	}
-	
-	this.train = function(intput, bestout, loop){
-		
-		this.neuron.output = this.compute(intput);
-		this.neuron.bestOutput = bestout;
-		
-		
-		for(k = 0; k < loop; k++){
-		/*calculate error*/	
-			this.neuron.errorOutput = [];
-			this.neuron.errorHidden = [];
-		
-			for(i = 0; i < numOutput; i++){
-				this.neuron.errorOutput.push(this.neuron.output[i] * (1 - this.neuron.output[i]) 
-											  * (this.neuron.bestOutput[i] - this.neuron.output[i]));
-			}
-		
-			for(i = 0; i <numHidden; i++){
-				var outError = 0;
-				for(j = 0; j < numOutput; j++){
-					outError += this.neuron.errorOutput[j] * this.weight.hdtoou[i][j];
-				}
-				this.neuron.errorHidden.push(outError * this.neuron.hidden[i] * (1 - this.neuron.hidden[i]));
-			}
-		/*********************/
-		
-			for(i = 0; i < numHidden; i++){
-				for(j = 0; j < numInput; j++){
-					this.weight.intohd[j][i] += learningRate * this.neuron.errorHidden[i] * this.neuron.input[j];
-				}
-			}
-			
-			for(i = 0; i < numOutput; i++){
-				for(j = 0; j < numHidden; j++){
-					this.weight.hdtoou[j][i] += learningRate * this.neuron.errorOutput[i] * this.neuron.hidden[j];
-				}
-			}
-			
-
-			
-		}
-	}
+neuroevolution.prototype.train = function(intput, bestout, loop){
+    
+    this.neuron.output = this.compute(intput);
+    this.neuron.bestOutput = bestout;
+    
+    
+    for (let l = 0; l < loop; l++){
+    /*calculate error*/ 
+        this.neuron.errorOutput = [];
+        this.neuron.errorHidden = [];
+        
+        for (let i = 0; i < this.numHidden.length; i++){
+            this.neuron.errorHidden[i] = [];
+        }
+        
+        for (let i = 0; i < this.numOutput; i++){
+            this.neuron.errorOutput.push(this.neuron.output[i] * (1 - this.neuron.output[i]) 
+                                          * (this.neuron.bestOutput[i] - this.neuron.output[i]));
+        }
+        
+        for (let i = 0; i < this.numHidden[this.numHidden.length - 1]; i++){
+            let outError = 0;
+            for (let j = 0; j < this.numOutput; j++){
+                outError += this.neuron.errorOutput[j] * this.weight.HiddenOutput[i][j];
+            }
+            this.neuron.errorHidden[this.numHidden.length - 1].
+            push(outError * this.neuron.hidden[this.neuron.hidden.length - 1][i] *
+                (1 - this.neuron.hidden[this.numHidden.length - 1][i]));
+        }
+        
+        for (let i = this.numHidden.length - 2; i >= 0; i--){
+            for (let j = 0; j < this.numHidden[i]; j++){
+                let hiddenError = 0;
+                for (let k = 0; k < this.numHidden[i + 1]; k++){
+                    hiddenError += this.neuron.errorHidden[i + 1][k] * this.weight.HiddenHidden[i][j][k];
+                    //console.log('5:' + this.neuron.errorHidden[i + 1][k]);
+                    //console.log('6:' + this.weight.HiddenHidden[i][j][k]);
+                }
+                this.neuron.errorHidden[i].push(hiddenError * this.neuron.hidden[i][j] * (1 - this.neuron.hidden[i][j]));
+                //console.log('7:' + this.neuron.hidden[i][j]);
+                //console.log('8:' + this.neuron.errorHidden[i]);
+            }
+        }
+    /*********************/
+    
+        for (let i = 0; i < this.numHidden[0]; i++){
+            for (let j = 0; j < this.numInput; j++){
+                this.weight.IntputHidden[j][i] += this.learningRate * this.neuron.errorHidden[0][i] * this.neuron.input[j];
+            }
+        }
+        
+        
+        for (let i = 0; i < this.numHidden.length - 1; i++){
+            for (let j = 0; j < this.numHidden[i + 1]; j++){
+                for (let k = 0; k < this.numHidden[i]; k++){
+                    this.weight.HiddenHidden[i][k][j] += this.learningRate * this.neuron.errorHidden[i + 1][j] * this.neuron.hidden[i][k];
+                    //console.log('9:' + this.weight.HiddenHidden[i][k][j]);
+                }
+            }
+        }
+        
+        
+        for (let i = 0; i < this.numOutput; i++){
+            for (let j = 0; j < this.numHidden; j++){
+                this.weight.HiddenOutput[j][i] += this.learningRate * this.neuron.errorOutput[i] * this.neuron.hidden[this.neuron.hidden.length - 1][j];
+            }
+        }
+    }
+    
 }
 
 
