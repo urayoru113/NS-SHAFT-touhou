@@ -653,7 +653,7 @@ window.onload = function(){
 		music.title.load;
 		music.title.loop = true;
 		music.title.play();
-		game.canvas = document.querySelector('#GoDownStair');
+		game.canvas = document.querySelector('#NS-SHAFT');
 		game.canvas.style = "margin:0 auto; display: block;";
 		game.ctx = game.canvas.getContext("2d");
 		game.x = 0;
