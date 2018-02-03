@@ -75,7 +75,9 @@ class Keyboard {
     keydown(e) {
         switch (e.keyCode || e.which) {
             case this.keyMap.enter: {
-                this.callback();
+                if (this.event === 'title')
+                    this.callback();
+                break;
             }
         }
     }
@@ -87,13 +89,14 @@ class Keyboard {
 
 class Game {
     constructor() {
-        this.globalEvent = 'title';
+        this.key = new Keyboard();
         this.canvas = document.querySelector('#NS-SHAFT');
         this.canvas.style = "margin:0 auto; display: block;";
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width * 650/850;
         this.height = this.canvas.height;
-        this.key = new Keyboard();
+        this.onEvent = null;
+
     }
 
     init() {
@@ -101,8 +104,10 @@ class Game {
        this.bgmload(audio.title);
        this.bgmload(audio.background);
        this.soundload(audio.system1);
+       this.setGlobalEvent('title');
+       this.onEvent = this.onStart;
        this.key.listener(function () {
-            self.onstart();
+            self.onEvent();
        });
     }
     
@@ -147,6 +152,18 @@ class Game {
         return {...this.record.player};
     }
     
+        
+    initPlatform() {
+        const platform = {
+            width  : 120,
+            height : 25,
+            x      : this.width - this.platform.width,
+            y      : this.height + 2*this.platform.height,
+            speed  : 3,
+        }
+        return platform;
+    }
+    
     setLevel(level) {
         if (level === 1) {
             this.platform = [];
@@ -159,7 +176,7 @@ class Game {
         }
     }
     
-    onstart() {
+    onStart() {
         this.bgmstop(audio.title);
         this.soundplay(audio.system1);
         this.initStates();
@@ -167,9 +184,33 @@ class Game {
         this.setLevel(1);
         this.sleep(800);
         this.bgmstart(audio.background);
-        this.globalEvent = 'start';
+        this.setGlobalEvent('start');
+        this.setFPS(30);
+        this.update();
     }
+    
+    update() {
+        const FPS  = this.getFPS();
+        const self = this;
 
+        if (this.platform.length === 0) {
+
+        }
+        if (FPS && this.globalEvent === 'start'){
+            setTimeout(function() {
+                self.update();
+            }, 1000/FPS);
+        }
+    }
+    
+    setFPS(fps) {
+        this.fps = fps;
+    }
+    
+    getFPS() {
+        return this.fps;
+    }
+    
     drawCtx() {
         if (this.globalEvent === 'title') {
             const width  = this.width;
@@ -189,30 +230,36 @@ class Game {
             const bgSpeed  = this.backgroundSpeed;
             this.drawImg(image.background, 0, -Math.floor(bgY % bgHeight));
             this.backgroundPosY += bgSpeed;
-            if (this.backgroundPosY === bgHeight) this.backgroundPosY %= bgHeight;
+            if (!(this.backgroundPosY % bgHeight)) this.backgroundPosY %= bgHeight;
             
-            
+            const characterPos = [
+                this.characterPanelX,
+                this.characterPanelY,
+                this.characterPanelWidth,
+                this.characterPanelHeight,
+            ];
+            const statesPos = [
+                this.statesPanelX,
+                this.statesPanelY,
+                this.statesPanelWidth,
+                this.statesPanelHeight
+            ];
+            this.drawImg(image.characterPanel, ...characterPos);
+            this.drawImg(image.statesPanel, ...statesPos);
         }
         
-        let self = this;
+        const self = this;
         requestAnimationFrame(function() {
             self.drawCtx();
         });
     }
 
-    drawImg(...param) {
-        const img = {
-            source : param[0],
-            x      : param[1],
-            y      : param[2],
-            w      : param[3],
-            h      : param[4],
-        };
-        this.ctx.drawImage(...param);
+    drawImg(...area) {
+        this.ctx.drawImage(...area);
     }
 
-    drawObj(obj, x, y, width, height) {
-        let area= [x, y, width, height];
+    drawObj(...area) {
+        const obj = area.shift();
         let w;
         let h;
         //five letters
@@ -257,6 +304,11 @@ class Game {
         while ((new Date().getTime() - start) < time);
     }
     
+    setGlobalEvent(event) {
+        this.globalEvent = event;
+        this.key.event = event
+    }
+    
 }
 
 window.onload = function initLoader() {
@@ -274,9 +326,9 @@ window.onload = function initLoader() {
         platform1 : "./image/platform1.png",
         platform2 : "./image/platform2.png",
         girl : "./image/girl.png",
-        character_panel : "./image/character_panel1.jpg",
-        states_panel : "./image/states_panel3.jpg",
-        states_frame : "./image/states_frame.png",
+        characterPanel : "./image/character_panel1.jpg",
+        statesPanel : "./image/states_panel3.jpg",
+        statesFrame : "./image/states_frame.png",
         hp : "./image/hp.png",
         stamina : "./image/stamina.png",
         number : "./image/number.png",
@@ -284,14 +336,14 @@ window.onload = function initLoader() {
         message5 : "./image/five_letter.png",
         message6 : "./image/six_letter.png",
         icon : "./image/icon.png",
-        icon_frame : "./image/icon_frame.png",
-        item_frame : "./image/item_frame.png",
-        shop_background : "./image/shop_background.jpg",
+        iconFrame : "./image/icon_frame.png",
+        itemFrame : "./image/item_frame.png",
+        shopBackground : "./image/shop_background.jpg",
         potion1 : "./image/potion1.png",
         potion2 : "./image/potion2.png",
         cell : "./image/cell.png",
-        arrow_left : "./image/arrow_left.png",
-        arrow_right : "./image/arrow_right.png",
+        arrowLeft : "./image/arrow_left.png",
+        arrowRight : "./image/arrow_right.png",
     };
 
     const audioSprites = {
