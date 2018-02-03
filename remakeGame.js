@@ -46,9 +46,8 @@ const loadAudio = function funcLoadAudio(source, callback) {
 };
 
 class Keyboard {
-    constructor(caller) {
-        this.callee = caller;
-        this.key = {
+    constructor() {
+        this.keyMap = {
             enter : 13,
             shift : 16,
             left  : 37,
@@ -56,56 +55,149 @@ class Keyboard {
             right : 39,
             doen  : 40,
         };
-        this.listen();
+        this.listenKey();
     }
 
-    listen() {
+    listenKey() {
         const self = this;
         window.addEventListener('keydown', function (e) { self.keydown(e) }, false);
         window.addEventListener('keyup', function (e) { self.keyup(e) }, false);
-    } 
+    }
+    
+    listener(__func__) {
+        this.callback = __func__;
+    }
+    
+    callback() {
+        this.__func__();
+    }
 
     keydown(e) {
         switch (e.keyCode || e.which) {
-            case this.key.enter: {
-                log('enter');
+            case this.keyMap.enter: {
+                this.callback();
             }
         }
     }
-    
+
     keyup(e) {
     }
 
 }
 
-class Draw {
-    constructor() {
-    }
-}
-
 class Game {
     constructor() {
         this.globalEvent = 'title';
-        this.canvas = document.querySelector('#NS-SHAFT');     
+        this.canvas = document.querySelector('#NS-SHAFT');
         this.canvas.style = "margin:0 auto; display: block;";
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width * 650/850;
         this.height = this.canvas.height;
+        this.key = new Keyboard();
     }
 
     init() {
-       this.drawctx(); 
+       const self = this;
+       this.bgmload(audio.title);
+       this.bgmload(audio.background);
+       this.soundload(audio.system1);
+       this.key.listener(function () {
+            self.onstart();
+       });
+    }
+    
+    initStates() {
+        this.record = {
+            player : {
+                item      : [],
+                stamina   : 50,
+                hp        : 100,
+                speed     : 2,
+                gold      : 0,
+                sp        : 0,
+                speedUp   : 1,
+                posX      : 0,
+                posY      : 0,
+                width     : image.girl.width / 3,
+                height    : image.girl.height / 4,
+                imagex    : image.girl.width / 3,
+                imagey    : 0,
+                iconX     : 176,
+                iconY     : 163,
+                iconWidth : 200,
+                iconHeight: 200,
+                isSpeedUp : false,
+                isDrop    : false,
+                onLeft    : false,
+                onRight   : false,
+            },
+        };
+        
+        this.characterPanelX = this.canvas.width * 650/850;
+        this.characterPanelY = 0;
+        this.characterPanelWidth  = this.canvas.width * 200/850;
+        this.characterPanelHeight = this.canvas.height;
+        this.statesPanelX = 0;
+        this.statesPanelY = 0;
+        this.statesPanelWidth  = this.canvas.width * 650/850;
+        this.statesPanelHeight = this.canvas.height * 1/10;
+    }
+    
+    initPlayer() {
+        return {...this.record.player};
+    }
+    
+    setLevel(level) {
+        if (level === 1) {
+            this.platform = [];
+            this.gravity = 5;
+            this.level = 1;
+            this.time = 1;
+            this.score = 0;
+            this.backgroundPosY = 0;
+            this.backgroundSpeed = 0.5;
+        }
+    }
+    
+    onstart() {
+        this.bgmstop(audio.title);
+        this.soundplay(audio.system1);
+        this.initStates();
+        this.player = this.initPlayer();
+        this.setLevel(1);
+        this.sleep(800);
+        this.bgmstart(audio.background);
+        this.globalEvent = 'start';
     }
 
-    drawctx() {
+    drawCtx() {
         if (this.globalEvent === 'title') {
-            const width = this.width;
+            const width  = this.width;
             const height = this.height;
-
             this.drawImg(image.title, 0, 0, width, height);
             this.drawImg(image.arrow, width/4, height/3 - 2, height/15, height/15);
             this.drawObj('start', width / 3, height / 3, width / 3, height / 15);
         }
+        
+        if (this.globalEvent === 'start'){
+            //draw background
+            const width    = this.width;
+            const height   = this.height;
+            const bgWidth  = image.background.width;
+            const bgHeight = image.background.height;
+            const bgY      = this.backgroundPosY;
+            const bgSpeed  = this.backgroundSpeed;
+            this.drawImg(image.background, 0, -Math.floor(bgY % bgHeight));
+            this.backgroundPosY += bgSpeed;
+            if (this.backgroundPosY === bgHeight) this.backgroundPosY %= bgHeight;
+            
+            
+        }
+        
+        let self = this;
+        requestAnimationFrame(function() {
+            self.drawCtx();
+        });
     }
 
     drawImg(...param) {
@@ -120,10 +212,9 @@ class Game {
     }
 
     drawObj(obj, x, y, width, height) {
-        let area= [...arguments];
+        let area= [x, y, width, height];
         let w;
         let h;
-        area.shift();
         //five letters
         w = image.message5.width / 3;
         h = image.message5.height / 14;
@@ -134,6 +225,38 @@ class Game {
             this.ctx.drawImage(image.message5, 0, 0, 2*w, 5*h, ...area);
         }
     }
+
+    bgmload(music) {
+        music.load;
+        music.loop = true;
+    }
+
+    bgmpause(music) {
+        muisc.pause;
+    }
+
+    bgmstart(music) {
+        music.play();
+    }
+
+    bgmstop(music) {
+        music.pause();
+        music.current = 0.0;
+    }
+    
+    soundload(music) {
+        music.load;
+    }
+    
+    soundplay(music) {
+        music.play();
+    }
+    
+    sleep(time) {
+        const start = new Date().getTime();
+        while ((new Date().getTime() - start) < time);
+    }
+    
 }
 
 window.onload = function initLoader() {
@@ -182,10 +305,11 @@ window.onload = function initLoader() {
     const init = function initGameManager() {
         const game = new Game();
         game.init();
+        game.drawCtx();
+        game.bgmstart(audio.title);
     };
 
     loadImage(imageSprites, function (imgs) {
-        log('Load image success');
         imageloaded = true;
         image = imgs;
         if (imageloaded && audioloaded) {
@@ -194,7 +318,6 @@ window.onload = function initLoader() {
     });
 
     loadAudio(audioSprites, function (auds) {
-        log('Load audio success');
         audioloaded = true;
         audio = auds;
         if (imageloaded && audioloaded) {
