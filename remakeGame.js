@@ -45,8 +45,13 @@ const loadAudio = function funcLoadAudio(source, callback) {
     }
 };
 
-class Keyboard {
+class Game {
     constructor() {
+        this.canvas = document.querySelector('#NS-SHAFT');
+        this.canvas.style = "margin:0 auto; display: block;";
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width * 650/850;
+        this.height = this.canvas.height;
         this.keyMap = {
             enter : 13,
             shift : 16,
@@ -58,57 +63,11 @@ class Keyboard {
         this.listenKey();
     }
 
-    listenKey() {
-        const self = this;
-        window.addEventListener('keydown', function (e) { self.keydown(e) }, false);
-        window.addEventListener('keyup', function (e) { self.keyup(e) }, false);
-    }
-
-    listener(__func__) {
-        this.callback = __func__;
-    }
-
-    callback() {
-        this.__func__();
-    }
-
-    keydown(e) {
-        switch (e.keyCode || e.which) {
-            case this.keyMap.enter: {
-                if (this.event === 'title')
-                    this.callback();
-                break;
-            }
-        }
-    }
-
-    keyup(e) {
-    }
-
-}
-
-class Game {
-    constructor() {
-        this.key = new Keyboard();
-        this.canvas = document.querySelector('#NS-SHAFT');
-        this.canvas.style = "margin:0 auto; display: block;";
-        this.ctx = this.canvas.getContext('2d');
-        this.width = this.canvas.width * 650/850;
-        this.height = this.canvas.height;
-        this.onEvent = null;
-
-    }
-
-    init() {
+    onTitle() {
+       this.setGlobalEvent('title');
        const self = this;
        this.bgmload(audio.title);
        this.bgmload(audio.background);
-       this.soundload(audio.system1);
-       this.setGlobalEvent('title');
-       this.onEvent = this.onStart;
-       this.key.listener(function () {
-            self.onEvent();
-       });
     }
 
     initStates() {
@@ -121,20 +80,20 @@ class Game {
                 gold      : 0,
                 sp        : 0,
                 speedUp   : 1,
-                posX      : 0,
-                posY      : 0,
+                x         : 0,
+                y         : 0,
                 width     : image.girl.width / 3,
                 height    : image.girl.height / 4,
-                imagex    : image.girl.width / 3,
-                imagey    : 0,
+                imageX    : image.girl.width / 3,
+                imageY    : 0,
                 iconX     : 176,
                 iconY     : 163,
                 iconWidth : 200,
                 iconHeight: 200,
-                isSpeedUp : false,
-                isDrop    : false,
+                onSpeedUp : false,
                 onLeft    : false,
                 onRight   : false,
+                isDrop    : false,
             },
         };
 
@@ -178,6 +137,7 @@ class Game {
     }
 
     onStart() {
+        this.setGlobalEvent('start');
         this.bgmstop(audio.title);
         this.soundplay(audio.system1);
         this.initStates();
@@ -185,45 +145,25 @@ class Game {
         this.setLevel(1);
         this.sleep(800);
         this.bgmstart(audio.background);
-        this.setGlobalEvent('start');
         this.setFPS(30);
         this.player = this.initPlayer();
         this.platform[0] = this.initPlatform();
+        this.player.x = this.platform[0].x + this.platform[0].width/2 - this.player.width/2;
+        this.player.y = this.platform[0].y - this.player.height;
+        this.setEvent();
         this.update();
 
     }
-
+    
     update() {
         const FPS  = this.getFPS();
         const self = this;
-
-
-        for (let i = 0; i < this.platform.length; i++){
-            this.platform[i].y -= this.platform[i].speed;
-        }
-
-        if (FPS && this.globalEvent === 'start'){
-            setTimeout(function() {
-                self.update();
-            }, 1000/FPS);
-        }
-    }
-    
-    detect() {
-        if (this.player.isDrop) this.player.y += dropSpeed()*this.time;
+        this.player.isDrop = true;
         
         if (this.platform[this.platform.length - 1].y < this.height - this.height/20){
             if (Math.random() > 0.925 || this.platform[this.platform.length - 1].y < this.height * 2/5){
                 this.platform[this.platform.length] = this.initPlatform();
             }
-        }
-        
-        if (this.player.y <= this.statesPanelHeight) {
-            this.player.isDrop = true;
-            this.time = 1;
-            this.soundPlay(music.boom);
-            this.player.hp -= 10;
-            break;
         }
 
         for (let i = 0; i < this.platform.length; i++) {
@@ -231,36 +171,90 @@ class Game {
                 this.platform.splice(i--, 1);
             }
         }
-       /* 
+       
         for (let i = 0; i < this.platform.length; i++){
             if (this.player.x + this.player.width*2/3 > this.platform[i].x &&
                 this.player.x + this.player.width*1/3 < this.platform[i].x + this.platform[i].width) {
-                if (this.player.y + this.player.height === this.platform[i].y){
-                    this.player.y -= this.platform[i].speed;
-                    this.player.is_drop = false;
-                    this.t = 1;
-                    if (this.player.left === false && this.player.right === false){
-                        if (this.player.stamina < 50){
-                            this.player.stamina += 0.1;
-                        }
-                    }
-                    break;
+                if (this.player.y + this.player.height === this.platform[i].y) {
+                    this.platform[i].y -= this.platform[i].speed;
+                    this.player.y = this.platform[i].y - this.player.height;
+                    this.player.isDrop = false;
+                    this.time = 1;
                 }
                 else if (this.player.y + this.player.height <= this.platform[i].y &&
-                         this.player.y + this.player.height >= this.platform[i].y - this.gravity * (this.t + 0.04) * (this.t + 0.04) - this.platform[i].speed){
+                         this.player.y + this.player.height >= this.platform[i].y - this.dropSpeed()*this.time - this.platform[i].speed) {
+                    this.platform[i].y -= this.platform[i].speed;
                     this.player.y = this.platform[i].y - this.player.height;
-                    this.player.is_drop = false;
-                    this.t = 1;
-                    music.drop.load;
-                    music.drop.play();
-                    break;
+                    this.player.isDrop = false;
+                    this.time = 1;
+                    this.soundplay(audio.drop);
+                }
+                else {
+                    this.platform[i].y -= this.platform[i].speed;
                 }
             }
-            else{
-                this.player.is_drop = true;
+            else {
+                this.platform[i].y -= this.platform[i].speed;
             }
         }
-             */
+        
+        if (this.player.y < this.statesPanelHeight) {
+            this.player.y = this.statesPanelHeight;
+            this.player.isDrop = true;
+            this.time = 1;
+            this.soundplay(audio.boom);
+            this.player.hp -= 10;
+        }
+        
+        if (this.player.isDrop) this.player.y += this.dropSpeed()*this.time;
+        
+        //player moving
+        if (this.player.onLeft && !this.player.onRight) {
+            this.player.imageX += this.player.width;
+            this.player.imageX %= (3 * this.player.width);
+            this.player.imageY = this.player.height;
+        }
+        
+        if (!this.player.onLeft && this.player.onRight) {
+            this.player.imageX += this.player.width;
+            this.player.imageX %= (3 * this.player.width);
+            this.player.imageY = 2 * this.player.height;
+        }
+        if (this.player.onLeft & this.player.onRight ||
+            !this.player.onLeft & !this.player.onRight) {
+            this.player.imageX = image.girl.width/3;
+            this.player.imageY = 0;
+        }
+                
+        
+        if (FPS && this.globalEvent === 'start'){
+            setTimeout(function() {
+                self.update();
+            }, 1000/FPS);
+        }
+        
+    }
+    
+    setEvent() {
+        let self = this;
+        const moving = setInterval(
+                function(){
+                    if (self.player.onLeft){
+                        if (self.player.x < self.player.speed) self.player.x = 0;
+                        if (self.player.x > 0) self.player.x -= self.player.speed;
+                    }
+                    if (self.player.onRight){
+                        if (self.player.x + self.player.width <= self.width &&
+                            self.player.x + self.player.width >= self.width - self.player.speed)
+                            self.player.x = self.width - self.player.width;
+                        else if (self.player.x + self.player.width <= self.width)
+                            self.player.x += self.player.speed;
+                    }
+                        },10);
+        /*set time to control gravity*/
+        const drop = setInterval(function(){
+            if (self.time < 2.5) self.time += 0.02;
+        }, 1000/50);
     }
 
     drawCtx() {
@@ -296,19 +290,32 @@ class Game {
                 this.statesPanelWidth,
                 this.statesPanelHeight
             ];
-
+            
+            const player = [
+                this.player.imageX,
+                this.player.imageY,
+                this.player.width,
+                this.player.height,
+                this.player.x,
+                this.player.y,
+                this.player.width,
+                this.player.height
+            ];
+            
             for (let i in this.platform) {
                 const platform = [
                                 this.platform[i].x,
                                 this.platform[i].y,
                                 this.platform[i].width,
-                                this.platform[i].height
+                                this.platform[i].height,
                 ];
                 this.drawImg(image.platform, ...platform);
             }
-
+            
+            this.ctx.drawImage(image.girl, ...player);
             this.drawImg(image.characterPanel, ...characterPos);
             this.drawImg(image.statesPanel, ...statesPos);
+            
         }
 
         const self = this;
@@ -347,7 +354,7 @@ class Game {
     
     dropSpeed(v) {
         if (v) {
-            this.time = v / this.time;
+            this.time = v / this.gravity;
         } else {
             return this.gravity * this.time;
         }
@@ -381,9 +388,54 @@ class Game {
         while ((new Date().getTime() - start) < time);
     }
 
+
+    listenKey() {
+        const self = this;
+        window.addEventListener('keydown', function (e) { self.keydown(e) }, false);
+        window.addEventListener('keyup', function (e) { self.keyup(e) }, false);
+    }
+
+    callback() {
+        this.__func__();
+    }
+
+    keydown(e) {
+        switch (e.keyCode || e.which) {
+            case this.keyMap.enter: {
+                if (this.globalEvent === 'title')
+                    this.onStart();
+                break;
+            }
+            case this.keyMap.left: {
+                if (this.globalEvent === 'start')
+                    this.player.onLeft = true;
+                break;
+            }
+            case this.keyMap.right: {
+                if (this.globalEvent === 'start')
+                    this.player.onRight = true;
+                break;
+            }
+        }
+    }
+
+    keyup(e) {
+        switch (e.keyCode || e.which) {
+            case this.keyMap.left: {
+                if (this.globalEvent === 'start')
+                    this.player.onLeft = false;
+                break;
+            }
+            case this.keyMap.right: {
+                if (this.globalEvent === 'start')
+                    this.player.onRight = false;
+                break;
+            }
+        }
+    }
+    
     setGlobalEvent(event) {
         this.globalEvent = event;
-        this.key.event = event
     }
 
 }
@@ -433,7 +485,7 @@ window.onload = function initLoader() {
 
     const init = function initGameManager() {
         const game = new Game();
-        game.init();
+        game.onTitle();
         game.drawCtx();
         game.bgmstart(audio.title);
     };
