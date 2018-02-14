@@ -151,6 +151,7 @@ class Game {
         this.player.x = this.platform[0].x + this.platform[0].width/2 - this.player.width/2;
         this.player.y = this.platform[0].y - this.player.height;
         this.setEvent();
+        this.mlModel();
         this.update();
 
     }
@@ -316,12 +317,23 @@ class Game {
             this.drawImg(image.characterPanel, ...characterPos);
             this.drawImg(image.statesPanel, ...statesPos);
             
+            this.img = this.ctx.getImageData(0, this.statesHeight, this.width, this.height);
+            
         }
 
         const self = this;
         requestAnimationFrame(function() {
             self.drawCtx();
         });
+    }
+    
+    mlModel() {
+        const self = this;
+        setInterval(function () {
+            const nn = new rl();
+            const img = self.ctx.getImageData(0, self.statesHeight, self.width, self.height);
+            const newImg = nn.maxPooling(self.ctx, self.img, 2);
+        }, 1000);
     }
 
     drawImg(...area) {

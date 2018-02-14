@@ -1,4 +1,4 @@
-var neuroevolution = function(){
+var rl = function reinforcementLearning(){
     
     this.numInput;
     this.numHidden = [];
@@ -44,7 +44,7 @@ var neuroevolution = function(){
     }
 }
 
-neuroevolution.prototype.network = function(){
+rl.prototype.network = function(){
     
 
     this.numInput = arguments[0];
@@ -82,7 +82,7 @@ neuroevolution.prototype.network = function(){
 
 }
 
-neuroevolution.prototype.compute = function(userdata){
+rl.prototype.compute = function(userdata){
     
     this.neuron.input = userdata;
     
@@ -100,7 +100,6 @@ neuroevolution.prototype.compute = function(userdata){
     for (let i = 0; i < this.numHidden[0]; i++){
         for (let j = 0; j < this.numInput; j++){
             this.neuron.hidden[0][i] += this.neuron.input[j] * this.weight.IntputHidden[j][i];
-            //console.log('3:' + this.weight.IntputHidden[j][i]);
         }
         this.neuron.hidden[0][i] = this.sigmoid(this.neuron.hidden[0][i]);
     }
@@ -109,7 +108,6 @@ neuroevolution.prototype.compute = function(userdata){
         for (let j = 0; j < this.numHidden[i + 1]; j++){
             for (let k = 0; k < this.numHidden[i]; k++){
                 this.neuron.hidden[i + 1][j] += this.neuron.hidden[i][k] * this.weight.HiddenHidden[i][k][j];
-                //console.log('4:' + this.neuron.hidden[i][k]);
             }
             this.neuron.hidden[i + 1][j] = this.sigmoid(this.neuron.hidden[i + 1][j]);
         }
@@ -125,7 +123,7 @@ neuroevolution.prototype.compute = function(userdata){
     return this.neuron.output;
 }
 
-neuroevolution.prototype.train = function(intput, bestout, loop){
+rl.prototype.train = function(intput, bestout, loop){
     
     this.neuron.output = this.compute(intput);
     this.neuron.bestOutput = bestout;
@@ -160,12 +158,9 @@ neuroevolution.prototype.train = function(intput, bestout, loop){
                 let hiddenError = 0;
                 for (let k = 0; k < this.numHidden[i + 1]; k++){
                     hiddenError += this.neuron.errorHidden[i + 1][k] * this.weight.HiddenHidden[i][j][k];
-                    //console.log('5:' + this.neuron.errorHidden[i + 1][k]);
-                    //console.log('6:' + this.weight.HiddenHidden[i][j][k]);
                 }
                 this.neuron.errorHidden[i].push(hiddenError * this.neuron.hidden[i][j] * (1 - this.neuron.hidden[i][j]));
-                //console.log('7:' + this.neuron.hidden[i][j]);
-                //console.log('8:' + this.neuron.errorHidden[i]);
+
             }
         }
     /*********************/
@@ -196,4 +191,30 @@ neuroevolution.prototype.train = function(intput, bestout, loop){
     
 }
 
-
+rl.prototype.maxPooling = function maxPooling(ctx, img, size) {
+    let w = img.width/size;
+    let h = img.height/size;
+    let newImg = ctx.createImageData(w, h);
+    let R = [];
+    let G = [];
+    let B = [];
+    for (let i = 0; i < w; i++) {
+        for (let j = 0; j < h; j++) {
+            for (let m = 0; m < size; m++) {
+                for (let n = 0; n < size; n++) {
+                    R[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 0];
+                    G[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 1];
+                    B[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 2];
+                }
+            }
+            newImg.data[(i*w + j)*4 + 0] = Math.max(...R);
+            newImg.data[(i*w + j)*4 + 1] = Math.max(...G);
+            newImg.data[(i*w + j)*4 + 2] = Math.max(...B);
+            newImg.data[(i*w + j)*4 + 3] = 255;
+            R = [];
+            G = [];
+            B = [];
+        }
+    }
+    return newImg;
+}
