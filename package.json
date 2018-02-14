@@ -1,0 +1,24 @@
+{
+  "name": "ns-shaft-machine-learning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "game.js",
+  "dependencies": {
+    "express": "^4.16.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urayoru113/NS-SHAFT-touhou.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/urayoru113/NS-SHAFT-touhou/issues"
+  },
+  "homepage": "https://github.com/urayoru113/NS-SHAFT-touhou#readme"
+}
