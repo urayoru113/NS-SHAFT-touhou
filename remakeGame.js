@@ -155,7 +155,6 @@ class Game {
         this.setLevel(1);
         this.initGame();
         this.update();
-
     }
     
     update() {
@@ -232,7 +231,8 @@ class Game {
         if(this.player.y > this.height + this.height/14) {
             this.gameover();
         }
-                
+        
+        this.score++;
         
         if (FPS && this.globalEvent === 'start'){
             setTimeout(function() {
@@ -310,8 +310,6 @@ class Game {
         }
 
 
-        
-
         requestAnimationFrame(function() {
             self.drawCtx();
         });
@@ -324,17 +322,15 @@ class Game {
         setInterval(function () {
             let inputs = [];
             let i;
-            inputs[0] = self.player.x;
-            inputs[1] = self.player.y;
+            inputs[0] = self.player.x/self.width;
+            inputs[1] = (self.player.y - self.statesPanelHeight)/(self.height - self.statesPanelHeight);
             for (i = 0; i < 7; i++) {
-                inputs[i*2 + 2] = self.platform[i]? self.platform[i].x : 0;
-                inputs[i*2 + 3] = self.platform[i]? self.platform[i].y : 0;
+                inputs[i*2 + 2] = self.platform[i]? self.platform[i].x/(self.width - self.width/5) : -1;
+                inputs[i*2 + 3] = self.platform[i]? (self.platform[i].y - self.statesPanelHeight)/(self.height - self.statesPanelHeight) : -1;
             }
             
-            let outputs = self.nn.softmax(self.nn.compute(inputs));
+            const outputs = self.nn.softmax(self.nn.compute(inputs));
             const action = Math.random();
-            log(outputs);
-            log(self.keyMap);
             if (action < outputs[0]) {
                 self.player.onLeft = true;
                 self.player.onRight = false;
