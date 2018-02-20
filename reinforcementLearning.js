@@ -5,6 +5,7 @@ var rl = function reinforcementLearning(){
     this.numOutput;
     
     this.loop = 0;
+    this.epchos = 0;
     this.learningRate = 0.3;
     
     this.weight = {
@@ -30,18 +31,18 @@ var rl = function reinforcementLearning(){
         errorHidden : [],
         errorOutput : []
     }
+}
+
+rl.prototype.sigmoid = function(x) {
+    return 1 / (1 + Math.exp(-x));
+} 
     
-    this.sigmoid = function(x){
-        return 1 / (1 + Math.exp(-x));
-    }
+rl.prototype.tanh = function(x){
+    return 1 / (1 + Math.tanh(x));
+}
     
-    this.tanh = function(x){
-        return 1 / (1 + Math.tanh(x));
-    }
-    
-    this.ReLU = function(x){
-        return (a > 0)? a : 0;
-    }
+rl.prototype.ReLU = function(x){
+    return (a > 0)? a : 0;
 }
 
 rl.prototype.network = function(){
@@ -123,6 +124,12 @@ rl.prototype.compute = function(userdata){
     return this.neuron.output;
 }
 
+rl.prototype.softmax = function(logits) {
+    const sum = logits.reduce((accumulator, num) => accumulator + num);
+    const mean = logits.map((num) => num/sum);
+    return mean;
+}
+
 rl.prototype.train = function(intput, bestout, loop){
     
     this.neuron.output = this.compute(intput);
@@ -191,29 +198,40 @@ rl.prototype.train = function(intput, bestout, loop){
     
 }
 
-rl.prototype.maxPooling = function maxPooling(ctx, img, size) {
-    let w = img.width/size;
-    let h = img.height/size;
+rl.prototype.pool = function maxPooling(ctx, img, size) {
+    let w = Math.floor(img.width/size);
+    let h = Math.floor(img.height/size);
     let newImg = ctx.createImageData(w, h);
-    let R = [];
-    let G = [];
-    let B = [];
-    for (let i = 0; i < w; i++) {
-        for (let j = 0; j < h; j++) {
-            for (let m = 0; m < size; m++) {
-                for (let n = 0; n < size; n++) {
-                    R[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 0];
-                    G[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 1];
-                    B[m*size + n] = img.data[((i*size + m)*img.width + (j*size + n))*4 + 2];
+    let RGBA = [];
+    let R = 0;
+    let G = 0;
+    let B = 0;
+    let offsetR;
+    let offsetG;
+    let offsetB;
+    let i;
+    let j;
+    let m;
+    let n;
+    for (i = 0; i < w; i++) {
+        for (j = 0; j < h; j++) {
+            for (m = 0; m < size; m++) {
+                for (n = 0; n < size; n++) {
+                    offsetR = ((i*size + m)*img.width + (j*size + n))*4 + 0;
+                    offsetG = ((i*size + m)*img.width + (j*size + n))*4 + 1;
+                    offsetB = ((i*size + m)*img.width + (j*size + n))*4 + 2;
+                    R = (R > img.data[offsetR]) ? R : img.data[offsetR];
+                    G = (G > img.data[offsetG]) ? G : img.data[offsetG];
+                    B = (B > img.data[offsetB]) ? B : img.data[offsetB];
                 }
             }
-            newImg.data[(i*w + j)*4 + 0] = Math.max(...R);
-            newImg.data[(i*w + j)*4 + 1] = Math.max(...G);
-            newImg.data[(i*w + j)*4 + 2] = Math.max(...B);
+            newImg.data[(i*w + j)*4 + 0] = R;
+            newImg.data[(i*w + j)*4 + 1] = G;
+            newImg.data[(i*w + j)*4 + 2] = B;
             newImg.data[(i*w + j)*4 + 3] = 255;
-            R = [];
-            G = [];
-            B = [];
+            R = 0;
+            G = 0;
+            B = 0;
         }
     }
     return newImg;

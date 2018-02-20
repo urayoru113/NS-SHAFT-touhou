@@ -58,14 +58,14 @@ class Game {
             left  : 37,
             up    : 38,
             right : 39,
-            doen  : 40,
+            down  : 40,
         };
         this.listenKey();
     }
 
     onTitle() {
        this.setGlobalEvent('title');
-       const self = this;
+       this.setFPS(30);
        this.bgmload(audio.title);
        this.bgmload(audio.background);
     }
@@ -123,6 +123,14 @@ class Game {
         platform.x *= Math.random();
         return platform;
     }
+    
+    initGame() {
+        this.initStates();
+        this.player = this.initPlayer();
+        this.platform[0] = this.initPlatform();
+        this.player.x = this.platform[0].x + this.platform[0].width/2 - this.player.width/2;
+        this.player.y = this.platform[0].y - this.player.height;
+    }
 
     setLevel(level) {
         if (level === 1) {
@@ -140,18 +148,12 @@ class Game {
         this.setGlobalEvent('start');
         this.bgmstop(audio.title);
         this.soundplay(audio.system1);
-        this.initStates();
-        this.player = this.initPlayer();
-        this.setLevel(1);
         this.sleep(800);
         this.bgmstart(audio.background);
-        this.setFPS(30);
-        this.player = this.initPlayer();
-        this.platform[0] = this.initPlatform();
-        this.player.x = this.platform[0].x + this.platform[0].width/2 - this.player.width/2;
-        this.player.y = this.platform[0].y - this.player.height;
         this.setEvent();
         this.mlModel();
+        this.setLevel(1);
+        this.initGame();
         this.update();
 
     }
@@ -226,6 +228,10 @@ class Game {
             this.player.imageX = image.girl.width/3;
             this.player.imageY = 0;
         }
+        
+        if(this.player.y > this.height + this.height/14) {
+            this.gameover();
+        }
                 
         
         if (FPS && this.globalEvent === 'start'){
@@ -236,35 +242,20 @@ class Game {
         
     }
     
-    setEvent() {
-        let self = this;
-        const moving = setInterval(
-                function(){
-                    if (self.player.onLeft){
-                        if (self.player.x < self.player.speed) self.player.x = 0;
-                        if (self.player.x > 0) self.player.x -= self.player.speed;
-                    }
-                    if (self.player.onRight){
-                        if (self.player.x + self.player.width <= self.width &&
-                            self.player.x + self.player.width >= self.width - self.player.speed)
-                            self.player.x = self.width - self.player.width;
-                        else if (self.player.x + self.player.width <= self.width)
-                            self.player.x += self.player.speed;
-                    }
-                        },10);
-        /*set time to control gravity*/
-        const drop = setInterval(function(){
-            if (self.time < 2.5) self.time += 0.02;
-        }, 1000/50);
+    gameover() {
+        this.setLevel(1);
+        this.initGame();
     }
 
     drawCtx() {
+        const self = this;
+        const nn = new rl();
         if (this.globalEvent === 'title') {
             const width  = this.width;
             const height = this.height;
             this.drawImg(image.title, 0, 0, width, height);
             this.drawImg(image.arrow, width/4, height/3 - 2, height/15, height/15);
-            this.drawObj('start', width / 3, height / 3, width / 3, height / 15);
+            this.drawObj('start', width/3, height/3, width/3, height/15);
         }
 
         if (this.globalEvent === 'start'){
@@ -316,12 +307,11 @@ class Game {
             this.ctx.drawImage(image.girl, ...player);
             this.drawImg(image.characterPanel, ...characterPos);
             this.drawImg(image.statesPanel, ...statesPos);
-            
-            this.img = this.ctx.getImageData(0, this.statesHeight, this.width, this.height);
-            
         }
 
-        const self = this;
+
+        
+
         requestAnimationFrame(function() {
             self.drawCtx();
         });
@@ -329,11 +319,35 @@ class Game {
     
     mlModel() {
         const self = this;
+        this.nn = new rl();
+        this.nn.network(16, 24, 20, 3);
         setInterval(function () {
-            const nn = new rl();
-            const img = self.ctx.getImageData(0, self.statesHeight, self.width, self.height);
-            const newImg = nn.maxPooling(self.ctx, self.img, 2);
-        }, 1000);
+            let inputs = [];
+            let i;
+            inputs[0] = self.player.x;
+            inputs[1] = self.player.y;
+            for (i = 0; i < 7; i++) {
+                inputs[i*2 + 2] = self.platform[i]? self.platform[i].x : 0;
+                inputs[i*2 + 3] = self.platform[i]? self.platform[i].y : 0;
+            }
+            
+            let outputs = self.nn.softmax(self.nn.compute(inputs));
+            const action = Math.random();
+            log(outputs);
+            log(self.keyMap);
+            if (action < outputs[0]) {
+                self.player.onLeft = true;
+                self.player.onRight = false;
+            } else if (action < (outputs[0] + outputs[1])) {
+                self.player.onLeft = false;
+                self.player.onRight = true;
+            } else {
+                self.player.onLeft = false;
+                self.player.onRight = false;
+            }
+
+        }, 100);
+        
     }
 
     drawImg(...area) {
@@ -354,7 +368,29 @@ class Game {
             this.ctx.drawImage(image.message5, 0, 0, 2*w, 5*h, ...area);
         }
     }
-    
+        
+    setEvent() {
+        let self = this;
+        const FPS = self.getFPS();
+        const moving = setInterval(
+                function(){
+                    if (self.player.onLeft){
+                        if (self.player.x < self.player.speed) self.player.x = 0;
+                        if (self.player.x > 0) self.player.x -= self.player.speed;
+                    }
+                    if (self.player.onRight){
+                        if (self.player.x + self.player.width <= self.width &&
+                            self.player.x + self.player.width >= self.width - self.player.speed)
+                            self.player.x = self.width - self.player.width;
+                        else if (self.player.x + self.player.width <= self.width)
+                            self.player.x += self.player.speed;
+                    }
+                        }, 300/FPS);
+        /*set time to control gravity*/
+        const drop = setInterval(function(){
+            if (self.time < 2.5) self.time += 0.02;
+        }, 600/FPS);
+    }
     
     setFPS(fps) {
         this.fps = fps;
@@ -499,7 +535,7 @@ window.onload = function initLoader() {
         const game = new Game();
         game.onTitle();
         game.drawCtx();
-        game.bgmstart(audio.title);
+        //game.bgmstart(audio.title);
     };
 
     loadImage(imageSprites, function (imgs) {
