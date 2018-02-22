@@ -8,7 +8,9 @@ var rl = function reinforcementLearning(){
     this.step = 0;
     this.batchsize = 20;
     this.epoch = 20;
-    this.learningRate = 0.3;
+    this.episode = 1;
+    this.learningRate = 0.001;
+    this.lastlayer = [];
     this.action = [];
     this.reward = [];
     this.states = [];
@@ -50,8 +52,8 @@ rl.prototype.ReLU = function(x){
     return (a > 0)? a : 0;
 }
 
-rl.prototype.softmax = function(logits) {
-    const logits = logits.map((num) => Math.exp(num));
+rl.prototype.softmax = function(lastlayer) {
+    const logits = lastlayer.map((num) => Math.exp(num));
     const sum = logits.reduce((accumulator, num) => accumulator + num);
     const mean = logits.map((num) => num/sum);
     return mean;
@@ -202,32 +204,32 @@ rl.prototype.train = function(intput, bestout){
     
 }
 
-rl.prototype.mcpl = function MonteCarloPolicyGradient() {
+rl.prototype.mcpg = function MonteCarloPolicyGradient() {
     let baseline = this.reward.reduce((acculator, num) => acculator + num)/this.epoch;
     for(let epoch = 0; epoch < this.epoch; epoch++) {
-        for(let step = 0; n < this.step; n++) {
-            let outnet = this.compute(this.states[epoch][step]);
+        for(let step = 0; step < this.step[epoch]; step++) {
+            this.compute(this.states[epoch][step]);
+            let lastlayer = this.lastlayer;
+            let action = this.action;
             this.neuron.errorOutput = [];
             this.neuron.errorHidden = [];
             
             for (let i = 0; i < this.numHidden.length; i++){
                 this.neuron.errorHidden[i] = [];
             }
-
             
             for (let i = 0; i < this.numOutput; i++){
-                this.neuron.errorOutput.push(outnet[i]*(1 - outnet[i]) 
-                                           *(this.neuron.bestOutput[i] - outnet[i]));
+                this.neuron.errorOutput.push(1 - lastlayer[epoch][step][i]*action[epoch][step][i]);
             }
             
             for (let i = 0; i < this.numHidden[this.numHidden.length - 1]; i++){
                 let outError = 0;
                 for (let j = 0; j < this.numOutput; j++){
-                    outError += this.neuron.errorOutput[j] * this.weight.HiddenOutput[i][j];
+                    outError += this.neuron.errorOutput[j]*this.weight.HiddenOutput[i][j];
                 }
                 this.neuron.errorHidden[this.numHidden.length - 1].
-                push(outError * this.neuron.hidden[this.neuron.hidden.length - 1][i] *
-                    (1 - this.neuron.hidden[this.numHidden.length - 1][i]));
+                push(outError*this.neuron.hidden[this.neuron.hidden.length - 1][i] *
+                (1 - this.neuron.hidden[this.numHidden.length - 1][i]));
             }
             
             for (let i = this.numHidden.length - 2; i >= 0; i--){
@@ -236,23 +238,21 @@ rl.prototype.mcpl = function MonteCarloPolicyGradient() {
                     for (let k = 0; k < this.numHidden[i + 1]; k++){
                         hiddenError += this.neuron.errorHidden[i + 1][k] * this.weight.HiddenHidden[i][j][k];
                     }
-                    this.neuron.errorHidden[i].push(hiddenError * this.neuron.hidden[i][j] * (1 - this.neuron.hidden[i][j]));
-
-                }
-            }
-        /*********************/
-        
-            for (let i = 0; i < this.numHidden[0]; i++){
-                for (let j = 0; j < this.numInput; j++){
-                    this.weight.IntputHidden[j][i] += this.learningRate * this.neuron.errorHidden[0][i] * this.neuron.input[j];
+                    this.neuron.errorHidden[i].push(hiddenError*this.neuron.hidden[i][j]*(1 - this.neuron.hidden[i][j]));
                 }
             }
             
+            
+            for (let i = 0; i < this.numHidden[0]; i++){
+                for (let j = 0; j < this.numInput; j++){
+                    this.weight.IntputHidden[j][i] += this.learningRate*this.neuron.errorHidden[0][i]*this.neuron.input[j]*(this.reward[epoch] - baseline);
+                }
+            }
             
             for (let i = 0; i < this.numHidden.length - 1; i++){
                 for (let j = 0; j < this.numHidden[i + 1]; j++){
                     for (let k = 0; k < this.numHidden[i]; k++){
-                        this.weight.HiddenHidden[i][k][j] += this.learningRate * this.neuron.errorHidden[i + 1][j] * this.neuron.hidden[i][k];
+                        this.weight.HiddenHidden[i][k][j] += this.learningRate*this.neuron.errorHidden[i + 1][j]*this.neuron.hidden[i][k]*(this.reward[epoch] - baseline);
                     }
                 }
             }
@@ -260,11 +260,12 @@ rl.prototype.mcpl = function MonteCarloPolicyGradient() {
             
             for (let i = 0; i < this.numOutput; i++){
                 for (let j = 0; j < this.numHidden; j++){
-                    this.weight.HiddenOutput[j][i] += this.learningRate * this.neuron.errorOutput[i] * this.neuron.hidden[this.neuron.hidden.length - 1][j];
+                    this.weight.HiddenOutput[j][i] += this.learningRate * this.neuron.errorOutput[i]*(this.reward[epoch] - baseline);
                 }
             }
         }
     }
+    log(this.weight);
 }
 
 rl.prototype.pool = function maxPooling(ctx, img, size) {

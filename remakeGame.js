@@ -158,7 +158,6 @@ class Game {
     }
     
     update() {
-        const FPS  = this.getFPS();
         const self = this;
         this.player.isDrop = true;
         
@@ -234,15 +233,22 @@ class Game {
         
         this.score++;
         
-        if (FPS && this.globalEvent === 'start'){
+        if (this.globalEvent === 'start'){
             setTimeout(function() {
                 self.update();
-            }, 1000/FPS);
+            }, 1000/self.getFPS());
         }
-        
     }
     
     gameover() {
+        this.nn.reward[this.nn.epoch] = this.score;
+        this.nn.epoch++;
+        if (this.nn.epoch >= this.nn.episode) {
+            clearInterval(this.nn.model);
+            for (let i = 0; i < 5; i++)
+                this.nn.mcpg();
+            this.mlModel();
+        }
         this.setLevel(1);
         this.initGame();
     }
@@ -318,31 +324,59 @@ class Game {
     mlModel() {
         const self = this;
         this.nn = new rl();
+        this.nn.episode = 10;
+        this.nn.epoch = 0;
+        this.nn.step = [];
+        this.nn.reward = [];
+        this.nn.action = [];
+        this.nn.states = [];
+        this.nn.lastlayer = [];
+        for (let i = 0; i < this.nn.episode; i++) {
+            this.nn.step[i] = 0;
+            this.nn.reward[i] = [];
+            this.nn.action[i] = [];
+            this.nn.states[i] = [];
+            this.nn.lastlayer[i] = [];
+        }
         this.nn.network(16, 24, 20, 3);
-        setInterval(function () {
+        this.nn.model = setInterval(function () {
+            let nn = self.nn;
             let inputs = [];
-            let i;
             inputs[0] = self.player.x/self.width;
             inputs[1] = (self.player.y - self.statesPanelHeight)/(self.height - self.statesPanelHeight);
-            for (i = 0; i < 7; i++) {
+            for (let i = 0; i < 7; i++) {
                 inputs[i*2 + 2] = self.platform[i]? self.platform[i].x/(self.width - self.width/5) : -1;
                 inputs[i*2 + 3] = self.platform[i]? (self.platform[i].y - self.statesPanelHeight)/(self.height - self.statesPanelHeight) : -1;
             }
-            
-            const outputs = self.nn.softmax(self.nn.compute(inputs));
+            const gen = nn.compute(inputs);
+            const outputs = nn.softmax(gen);
             const action = Math.random();
+            nn.lastlayer[nn.epoch].push(gen);
+            nn.states[nn.epoch].push(inputs);
             if (action < outputs[0]) {
                 self.player.onLeft = true;
                 self.player.onRight = false;
+                nn.action[nn.epoch].push([1, 0, 0]);
             } else if (action < (outputs[0] + outputs[1])) {
                 self.player.onLeft = false;
                 self.player.onRight = true;
+                nn.action[nn.epoch].push([0, 1, 0]);
             } else {
                 self.player.onLeft = false;
                 self.player.onRight = false;
+                nn.action[nn.epoch].push([0, 0, 1]);
             }
-
-        }, 100);
+            nn.step[nn.epoch]++;
+            if (nn.step[nn.epoch] >= 1e5) {
+                self.nn.reward[self.nn.epoch] = self.score;
+                self.nn.epoch++;
+                clearInterval(self.nn.model);
+                for (let i = 0; i < 5; i++)
+                    self.nn.mcpg();
+                self.mlModel();
+            }
+            log(outputs);
+        }, 3000/self.getFPS());
         
     }
 
@@ -367,7 +401,6 @@ class Game {
         
     setEvent() {
         let self = this;
-        const FPS = self.getFPS();
         const moving = setInterval(
                 function(){
                     if (self.player.onLeft){
@@ -381,11 +414,11 @@ class Game {
                         else if (self.player.x + self.player.width <= self.width)
                             self.player.x += self.player.speed;
                     }
-                        }, 300/FPS);
+                        }, 300/self.getFPS());
         /*set time to control gravity*/
         const drop = setInterval(function(){
             if (self.time < 2.5) self.time += 0.02;
-        }, 600/FPS);
+        }, 600/self.getFPS());
     }
     
     setFPS(fps) {
@@ -393,7 +426,7 @@ class Game {
     }
 
     getFPS() {
-        return this.fps;
+        return this.fps || 1e10;
     }
     
     dropSpeed(v) {
@@ -414,6 +447,7 @@ class Game {
     }
 
     bgmstart(music) {
+        return;
         music.play();
     }
 
@@ -423,6 +457,7 @@ class Game {
     }
 
     soundplay(music) {
+        return;
         music.load;
         music.play();
     }
@@ -531,7 +566,7 @@ window.onload = function initLoader() {
         const game = new Game();
         game.onTitle();
         game.drawCtx();
-        //game.bgmstart(audio.title);
+        game.bgmstart(audio.title);
     };
 
     loadImage(imageSprites, function (imgs) {
