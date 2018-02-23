@@ -7,9 +7,8 @@ var rl = function reinforcementLearning(){
     this.loop = 0;
     this.step = 0;
     this.batchsize = 20;
-    this.epoch = 20;
-    this.episode = 1;
-    this.learningRate = 0.001;
+    this.episode = 20;
+    this.learningRate = 0.005;
     this.lastlayer = [];
     this.action = [];
     this.reward = [];
@@ -56,6 +55,12 @@ rl.prototype.softmax = function(lastlayer) {
     const logits = lastlayer.map((num) => Math.exp(num));
     const sum = logits.reduce((accumulator, num) => accumulator + num);
     const mean = logits.map((num) => num/sum);
+    return mean;
+}
+
+rl.prototype.remean = function(lastlayer) {
+    const sum = lastlayer.reduce((accumulator, num) => accumulator + num);
+    const mean = lastlayer.map((num) => num/sum);
     return mean;
 }
 
@@ -143,7 +148,7 @@ rl.prototype.train = function(intput, bestout){
     this.neuron.bestOutput = bestout;
     
     
-    for (let l = 0; l < this.epoch; l++){
+    for (let l = 0; l < this.episode; l++){
     /*calculate error*/ 
         this.neuron.errorOutput = [];
         this.neuron.errorHidden = [];
@@ -205,10 +210,10 @@ rl.prototype.train = function(intput, bestout){
 }
 
 rl.prototype.mcpg = function MonteCarloPolicyGradient() {
-    let baseline = this.reward.reduce((acculator, num) => acculator + num)/this.epoch;
-    for(let epoch = 0; epoch < this.epoch; epoch++) {
-        for(let step = 0; step < this.step[epoch]; step++) {
-            this.compute(this.states[epoch][step]);
+    let baseline = this.reward.reduce((acculator, num) => acculator + num)/this.episode/4;
+    for(let episode = 0; episode < this.episode; episode++) {
+        for(let step = 0; step < this.step[episode]*4/5; step++) {
+            this.compute(this.states[episode][step]);
             let lastlayer = this.lastlayer;
             let action = this.action;
             this.neuron.errorOutput = [];
@@ -219,7 +224,7 @@ rl.prototype.mcpg = function MonteCarloPolicyGradient() {
             }
             
             for (let i = 0; i < this.numOutput; i++){
-                this.neuron.errorOutput.push(1 - lastlayer[epoch][step][i]*action[epoch][step][i]);
+                this.neuron.errorOutput.push(1 - lastlayer[episode][step][i]);
             }
             
             for (let i = 0; i < this.numHidden[this.numHidden.length - 1]; i++){
@@ -245,14 +250,14 @@ rl.prototype.mcpg = function MonteCarloPolicyGradient() {
             
             for (let i = 0; i < this.numHidden[0]; i++){
                 for (let j = 0; j < this.numInput; j++){
-                    this.weight.IntputHidden[j][i] += this.learningRate*this.neuron.errorHidden[0][i]*this.neuron.input[j]*(this.reward[epoch] - baseline);
+                    this.weight.IntputHidden[j][i] += this.learningRate*this.neuron.errorHidden[0][i]*this.neuron.input[j]*(this.reward[episode] - baseline);
                 }
             }
             
             for (let i = 0; i < this.numHidden.length - 1; i++){
                 for (let j = 0; j < this.numHidden[i + 1]; j++){
                     for (let k = 0; k < this.numHidden[i]; k++){
-                        this.weight.HiddenHidden[i][k][j] += this.learningRate*this.neuron.errorHidden[i + 1][j]*this.neuron.hidden[i][k]*(this.reward[epoch] - baseline);
+                        this.weight.HiddenHidden[i][k][j] += this.learningRate*this.neuron.errorHidden[i + 1][j]*this.neuron.hidden[i][k]*(this.reward[episode] - baseline);
                     }
                 }
             }
@@ -260,11 +265,13 @@ rl.prototype.mcpg = function MonteCarloPolicyGradient() {
             
             for (let i = 0; i < this.numOutput; i++){
                 for (let j = 0; j < this.numHidden; j++){
-                    this.weight.HiddenOutput[j][i] += this.learningRate * this.neuron.errorOutput[i]*(this.reward[epoch] - baseline);
+                    if (this.action[i])
+                        this.weight.HiddenOutput[j][i] += this.learningRate*this.neuron.errorOutput[i]*this.neuron.hidden[this.neuron.hidden.length - 1][j]*(this.reward[episode] - baseline);
                 }
             }
         }
     }
+    log(this.neuron);
     log(this.weight);
 }
 

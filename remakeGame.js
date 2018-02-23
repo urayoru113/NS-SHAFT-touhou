@@ -48,7 +48,7 @@ const loadAudio = function funcLoadAudio(source, callback) {
 class Game {
     constructor() {
         this.canvas = document.querySelector('#NS-SHAFT');
-        this.canvas.style = "margin:0 auto; display: block;";
+        this.canvas.style = "margin:0 auto; display:block;";
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width * 650/850;
         this.height = this.canvas.height;
@@ -61,6 +61,11 @@ class Game {
             down  : 40,
         };
         this.listenKey();
+        
+        this.nn = new rl();
+        this.nn.network(16, 24, 20, 3);
+        this.maxScore = 0;
+        this.generation = 0;
     }
 
     onTitle() {
@@ -105,6 +110,7 @@ class Game {
         this.statesPanelY = 0;
         this.statesPanelWidth  = this.canvas.width * 650/850;
         this.statesPanelHeight = this.canvas.height * 1/10;
+        
     }
 
     initPlayer() {
@@ -232,6 +238,7 @@ class Game {
         }
         
         this.score++;
+        this.maxScore = this.score > this.maxScore? this.score : this.maxScore;
         
         if (this.globalEvent === 'start'){
             setTimeout(function() {
@@ -241,14 +248,15 @@ class Game {
     }
     
     gameover() {
-        this.nn.reward[this.nn.epoch] = this.score;
-        this.nn.epoch++;
-        if (this.nn.epoch >= this.nn.episode) {
-            clearInterval(this.nn.model);
+        this.nn.reward[this.nn.episode] = this.score;
+        this.nn.episode++;
+        if (this.nn.episode >= this.nn.trainEpisode) {
             for (let i = 0; i < 5; i++)
                 this.nn.mcpg();
+            clearInterval(this.nn.model);
             this.mlModel();
         }
+        this.generation++;
         this.setLevel(1);
         this.initGame();
     }
@@ -272,9 +280,10 @@ class Game {
             const bgHeight = image.background.height;
             const bgY      = this.backgroundPosY;
             const bgSpeed  = this.backgroundSpeed;
-            this.drawImg(image.background, 0, -Math.floor(bgY % bgHeight));
+            for (let i = 0; i < Math.ceil(this.height / image.background.height) + 1; i++)
+                this.drawImg(image.background, 0, i*image.background.height - Math.floor(bgY % bgHeight));
             this.backgroundPosY += bgSpeed;
-            if (!(this.backgroundPosY % bgHeight)) this.backgroundPosY %= bgHeight;
+            if (!(this.backgroundPosY % bgHeight)) this.backgroundPosY = 0;
 
             const characterPos = [
                 this.characterPanelX,
@@ -323,9 +332,8 @@ class Game {
     
     mlModel() {
         const self = this;
-        this.nn = new rl();
-        this.nn.episode = 10;
-        this.nn.epoch = 0;
+        this.nn.trainEpisode = 20;
+        this.nn.episode = 0;
         this.nn.step = [];
         this.nn.reward = [];
         this.nn.action = [];
@@ -338,7 +346,6 @@ class Game {
             this.nn.states[i] = [];
             this.nn.lastlayer[i] = [];
         }
-        this.nn.network(16, 24, 20, 3);
         this.nn.model = setInterval(function () {
             let nn = self.nn;
             let inputs = [];
@@ -349,33 +356,44 @@ class Game {
                 inputs[i*2 + 3] = self.platform[i]? (self.platform[i].y - self.statesPanelHeight)/(self.height - self.statesPanelHeight) : -1;
             }
             const gen = nn.compute(inputs);
-            const outputs = nn.softmax(gen);
+            const outputs = nn.remean(gen);
             const action = Math.random();
-            nn.lastlayer[nn.epoch].push(gen);
-            nn.states[nn.epoch].push(inputs);
+            nn.lastlayer[nn.episode] = gen;
+            nn.states[nn.episode] = inputs;
             if (action < outputs[0]) {
                 self.player.onLeft = true;
                 self.player.onRight = false;
-                nn.action[nn.epoch].push([1, 0, 0]);
+                nn.action.push([1, 0, 0]);
             } else if (action < (outputs[0] + outputs[1])) {
                 self.player.onLeft = false;
                 self.player.onRight = true;
-                nn.action[nn.epoch].push([0, 1, 0]);
+                nn.action.push([0, 1, 0]);
             } else {
                 self.player.onLeft = false;
                 self.player.onRight = false;
-                nn.action[nn.epoch].push([0, 0, 1]);
+                nn.action.push([0, 0, 1]);
             }
-            nn.step[nn.epoch]++;
-            if (nn.step[nn.epoch] >= 1e5) {
-                self.nn.reward[self.nn.epoch] = self.score;
-                self.nn.epoch++;
-                clearInterval(self.nn.model);
+            nn.step[nn.episode]++;
+            if (nn.step[nn.episode] >= 1e5) {
+                self.nn.reward[self.nn.episode] = self.score;
+                self.nn.episode++;
                 for (let i = 0; i < 5; i++)
                     self.nn.mcpg();
+                clearInterval(self.nn.model);
                 self.mlModel();
             }
-            log(outputs);
+            document.getElementById("maxScore").innerText = "maxScore: " + Math.floor(self.maxScore/self.getFPS());
+            document.getElementById("score").innerText = "score: " + Math.floor(self.score/self.getFPS());
+            document.getElementById("generation").innerText = "generation: " + self.generation;;
+            let layerOut = document.getElementsByClassName("layerOut");
+            for (let i = 0; i < 3; i++) {
+                if (i == 0)
+                    layerOut[i].innerText = "layerOut" + i + " -> left : " + gen[i];
+                else if (i == 1)
+                    layerOut[i].innerText = "layerOut" + i + " -> right: " + gen[i];
+                else
+                    layerOut[i].innerText = "layerOut" + i + " -> stand: " + gen[i];
+            }
         }, 3000/self.getFPS());
         
     }
@@ -447,7 +465,6 @@ class Game {
     }
 
     bgmstart(music) {
-        return;
         music.play();
     }
 
@@ -457,7 +474,6 @@ class Game {
     }
 
     soundplay(music) {
-        return;
         music.load;
         music.play();
     }
