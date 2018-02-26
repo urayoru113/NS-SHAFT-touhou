@@ -52,6 +52,7 @@ class Game {
         this.ctx = this.canvas.getContext('2d');
         this.width = this.canvas.width * 650/850;
         this.height = this.canvas.height;
+        this.sound = true;
         this.keyMap = {
             enter : 13,
             shift : 16,
@@ -59,6 +60,7 @@ class Game {
             up    : 38,
             right : 39,
             down  : 40,
+            s     : 83,
         };
         this.listenKey();
         
@@ -461,11 +463,14 @@ class Game {
     }
 
     bgmpause(music) {
-        muisc.pause;
+        music.pause();
     }
 
     bgmstart(music) {
-        music.play();
+        this.bgm = music;
+        if (this.sound) {
+            music.play();
+        }
     }
 
     bgmstop(music) {
@@ -474,8 +479,20 @@ class Game {
     }
 
     soundplay(music) {
-        music.load;
-        music.play();
+        if (this.sound) {
+            music.load;
+            music.play();
+        }
+    }
+    
+    soundManager() {
+        if (this.sound) {
+            this.sound = false;
+            this.bgmpause(this.bgm);
+        } else {
+            this.sound = true;
+            this.bgmstart(this.bgm);
+        }           
     }
 
     sleep(time) {
@@ -510,6 +527,9 @@ class Game {
                 if (this.globalEvent === 'start')
                     this.player.onRight = true;
                 break;
+            }
+            case this.keyMap.s: {
+                this.soundManager();
             }
         }
     }

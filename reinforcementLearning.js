@@ -8,7 +8,7 @@ var rl = function reinforcementLearning(){
     this.step = 0;
     this.batchsize = 20;
     this.episode = 20;
-    this.learningRate = 0.005;
+    this.learningRate = 0.025;
     this.lastlayer = [];
     this.action = [];
     this.reward = [];
@@ -212,7 +212,7 @@ rl.prototype.train = function(intput, bestout){
 rl.prototype.mcpg = function MonteCarloPolicyGradient() {
     let baseline = this.reward.reduce((acculator, num) => acculator + num)/this.episode/4;
     for(let episode = 0; episode < this.episode; episode++) {
-        for(let step = 0; step < this.step[episode]*4/5; step++) {
+        for(let step = 0; step < this.step[episode]; step++) {
             this.compute(this.states[episode][step]);
             let lastlayer = this.lastlayer;
             let action = this.action;
